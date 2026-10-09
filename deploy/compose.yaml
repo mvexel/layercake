@@ -9,6 +9,9 @@ services:
     # Built on the host, never pulled: Komodo runs `compose pull` before `up`.
     pull_policy: build
     restart: unless-stopped
+    # The deploy scripts are baked into the image (see ../Dockerfile), not
+    # bind-mounted: compose recreates a container when its image changes, not
+    # when a mounted file does.
     entrypoint: ["/run/layercake/deploy/update.sh"]
     environment:
       REGION: ${LAYERCAKE_REGION:-utah}
@@ -16,16 +19,17 @@ services:
       BUILD_INTERVAL: ${LAYERCAKE_BUILD_INTERVAL:-86400}
       PROCESS_ARGS: ${LAYERCAKE_PROCESS_ARGS:---duckdb-memory-limit=3GB}
     volumes:
-      - ./update.sh:/run/layercake/deploy/update.sh:ro
-      - ./describe.sql:/run/layercake/deploy/describe.sql:ro
       - data:/srv/layercake
     mem_limit: 4g
 
   layercake:
-    image: caddy:2-alpine
+    build:
+      context: .
+      dockerfile: web.Dockerfile
+    image: layercake-web:local
+    pull_policy: build
     restart: unless-stopped
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - data:/srv/layercake:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]

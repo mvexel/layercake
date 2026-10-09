@@ -18,6 +18,7 @@ RUN duckdb -c 'INSTALL spatial; INSTALL osmium FROM community;'
 
 COPY process.sh entrypoint.sh postprocess.sh /run/layercake/
 COPY sql /run/layercake/sql
+COPY deploy /run/layercake/deploy
 WORKDIR /run/layercake
 
 RUN chmod +x process.sh entrypoint.sh
