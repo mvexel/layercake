@@ -17,6 +17,7 @@ services:
       PROCESS_ARGS: ${LAYERCAKE_PROCESS_ARGS:---duckdb-memory-limit=3GB}
     volumes:
       - ./update.sh:/run/layercake/deploy/update.sh:ro
+      - ./describe.sql:/run/layercake/deploy/describe.sql:ro
       - data:/srv/layercake
     mem_limit: 4g
 

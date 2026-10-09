@@ -27,9 +27,17 @@ build() {
   curl -fsSL --retry 3 -R -o "$WORK/input.osm.pbf" "$PBF_URL"
   # shellcheck disable=SC2086
   ./entrypoint.sh "$WORK/input.osm.pbf" "$WORK/out" ${PROCESS_ARGS:-}
+
+  # The files the Layercake explorer reads besides the Parquet: each layer's
+  # row count and schema, and when the OSM data was extracted.
+  for parquet in "$WORK"/out/*.parquet; do
+    sed "s|{{INPUT}}|${parquet}|g; s|{{OUTPUT}}|${parquet%.parquet}.description.json|g" \
+      deploy/describe.sql | duckdb
+  done
+  source_modified="$(date -u -r "$WORK/input.osm.pbf" +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"timestamp":"%s"}\n' "$source_modified" > "$WORK/out/metadata.json"
   printf '{"region":"%s","source":"%s","source_modified":"%s","built_at":"%s"}\n' \
-    "$REGION" "$PBF_URL" \
-    "$(date -u -r "$WORK/input.osm.pbf" +%Y-%m-%dT%H:%M:%SZ)" \
+    "$REGION" "$PBF_URL" "$source_modified" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$WORK/out/build.json"
 
   rm -rf "${SERVE}/.${REGION}.old"
@@ -39,8 +47,16 @@ build() {
   echo "Published ${SERVE}/${REGION}"
 }
 
+# Each build runs as its own process: errexit does not apply inside a
+# function called as an `if` condition, so `if build` would carry on past a
+# failed step.
+if [ "${1:-}" = "--once" ]; then
+  build
+  exit
+fi
+
 while true; do
-  if build; then
+  if "$0" --once; then
     sleep "$BUILD_INTERVAL"
   else
     echo "Build failed; retrying in ${RETRY_INTERVAL}s" >&2
