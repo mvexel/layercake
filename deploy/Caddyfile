@@ -12,7 +12,9 @@
 	}
 	@preflight method OPTIONS
 	respond @preflight 204
-	header Cache-Control "public, max-age=3600"
+	# Files are replaced in place by each daily build, and a missing file must not
+	# stay cached: browsers revalidate every request against the ETag (a 304).
+	header Cache-Control "no-cache"
 	file_server browse {
 		hide .*
 	}
