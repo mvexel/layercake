@@ -7,7 +7,7 @@ not the OpenStreetMap US Layercake. For the official extracts and explorer, see
 Forked from upstream `main` at
 [`0d40503`](https://github.com/osmus/layercake/commit/0d405033d6fb8f5232d64efb520954fd5a202965)
 (Release v0.4.0). Full diff of this branch against that commit:
-[`0d40503...komodo`](https://github.com/mvexel/layercake/compare/0d405033d6fb8f5232d64efb520954fd5a202965...komodo).
+[`0d40503...osm.lol`](https://github.com/mvexel/layercake/compare/0d405033d6fb8f5232d64efb520954fd5a202965...osm.lol).
 
 A daily build of Utah from this branch is served at
 [layercake.osm.lol](https://layercake.osm.lol), with
