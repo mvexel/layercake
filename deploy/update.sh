@@ -3,7 +3,8 @@
 # Rebuilds the Layercake extract of one region on a loop and publishes it to
 # /srv/layercake/$REGION, replacing the previous build's directory in one step.
 #
-# Environment: REGION (directory name), PBF_URL (source .osm.pbf),
+# Environment: REGION (directory name), PBF_URL (source .osm.pbf), POLY_URL
+# (region outline, default: PBF_URL's Geofabrik .poly),
 # BUILD_INTERVAL (seconds between builds, default one day), RETRY_INTERVAL
 # (seconds before retrying a failed build, default one hour), PROCESS_ARGS
 # (extra process.sh flags).
@@ -20,6 +21,26 @@ SERVE=/srv/layercake
 # server hides dot-directories.
 WORK="${SERVE}/.build"
 
+# Print the region's bounding box as a JSON array [xmin, ymin, xmax, ymax]:
+# from the Geofabrik .poly outline next to the PBF when there is one, which
+# is the exact region, otherwise from the extent of the built data, which
+# spills past it where ways and relations cross the edge.
+bounds() {
+  if curl -fsSL --retry 3 -o "$WORK/region.poly" "${POLY_URL:-${PBF_URL%-latest.osm.pbf}.poly}"; then
+    awk 'NF == 2 && $1 + 0 == $1 && $2 + 0 == $2 {
+        x = $1 + 0; y = $2 + 0
+        if (n++ == 0) { xmin = xmax = x; ymin = ymax = y }
+        if (x < xmin) xmin = x; if (x > xmax) xmax = x
+        if (y < ymin) ymin = y; if (y > ymax) ymax = y
+      }
+      END { if (n == 0) exit 1; printf "[%.5f,%.5f,%.5f,%.5f]", xmin, ymin, xmax, ymax }' \
+      "$WORK/region.poly" && return
+  fi
+  duckdb -noheader -list -c "SELECT format('[{:.5f},{:.5f},{:.5f},{:.5f}]',
+      min(bbox.xmin), min(bbox.ymin), max(bbox.xmax), max(bbox.ymax))
+    FROM read_parquet('$WORK/out/*.parquet', union_by_name = true)"
+}
+
 build() {
   rm -rf "$WORK"
   mkdir -p "$WORK/out"
@@ -29,13 +50,13 @@ build() {
   ./entrypoint.sh "$WORK/input.osm.pbf" "$WORK/out" ${PROCESS_ARGS:-}
 
   # The files the Layercake explorer reads besides the Parquet: each layer's
-  # row count and schema, and when the OSM data was extracted.
+  # row count and schema, and when the OSM data was extracted and where it is.
   for parquet in "$WORK"/out/*.parquet; do
     sed "s|{{INPUT}}|${parquet}|g; s|{{OUTPUT}}|${parquet%.parquet}.description.json|g" \
       deploy/describe.sql | duckdb
   done
   source_modified="$(date -u -r "$WORK/input.osm.pbf" +%Y-%m-%dT%H:%M:%SZ)"
-  printf '{"timestamp":"%s"}\n' "$source_modified" > "$WORK/out/metadata.json"
+  printf '{"timestamp":"%s","bounds":%s}\n' "$source_modified" "$(bounds)" > "$WORK/out/metadata.json"
   printf '{"region":"%s","source":"%s","source_modified":"%s","built_at":"%s"}\n' \
     "$REGION" "$PBF_URL" "$source_modified" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$WORK/out/build.json"
