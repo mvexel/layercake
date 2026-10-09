@@ -21,12 +21,20 @@ SERVE=/srv/layercake
 # server hides dot-directories.
 WORK="${SERVE}/.build"
 
+# Download the region's Geofabrik .poly outline next to the PBF, if there is
+# one (POLY_URL overrides where it is looked for).
+fetch_poly() {
+  rm -f "$WORK/region.poly"
+  curl -fsSL --retry 3 -o "$WORK/region.poly" "${POLY_URL:-${PBF_URL%-latest.osm.pbf}.poly}" \
+    || rm -f "$WORK/region.poly"
+}
+
 # Print the region's bounding box as a JSON array [xmin, ymin, xmax, ymax]:
-# from the Geofabrik .poly outline next to the PBF when there is one, which
-# is the exact region, otherwise from the extent of the built data, which
-# spills past it where ways and relations cross the edge.
+# from the .poly outline when there is one, which is the exact region,
+# otherwise from the extent of the built data, which spills past it where
+# ways and relations cross the edge.
 bounds() {
-  if curl -fsSL --retry 3 -o "$WORK/region.poly" "${POLY_URL:-${PBF_URL%-latest.osm.pbf}.poly}"; then
+  if [ -f "$WORK/region.poly" ]; then
     awk 'NF == 2 && $1 + 0 == $1 && $2 + 0 == $2 {
         x = $1 + 0; y = $2 + 0
         if (n++ == 0) { xmin = xmax = x; ymin = ymax = y }
@@ -39,6 +47,38 @@ bounds() {
   duckdb -noheader -list -c "SELECT format('[{:.5f},{:.5f},{:.5f},{:.5f}]',
       min(bbox.xmin), min(bbox.ymin), max(bbox.xmax), max(bbox.ymax))
     FROM read_parquet('$WORK/out/*.parquet', union_by_name = true)"
+}
+
+# Print the .poly outline as a GeoJSON MultiPolygon, or nothing without one.
+# In the .poly format each section is a ring: an outer ring starts a polygon,
+# and a section whose name starts with ! is a hole in the polygon before it.
+outline() {
+  [ -f "$WORK/region.poly" ] || return 0
+  awk 'NR == 1 { next }
+    !inring {
+      if ($1 == "END") exit
+      inring = 1; hole = ($1 ~ /^!/); ring = ""; first = ""; last = ""
+      next
+    }
+    $1 == "END" {
+      inring = 0
+      if (last != first) ring = ring "," first
+      if (hole && n > 0) poly[n] = poly[n] ",[" ring "]"
+      else if (!hole) poly[++n] = "[" ring "]"
+      next
+    }
+    {
+      point = sprintf("[%.5f,%.5f]", $1, $2)
+      ring = ring (ring == "" ? "" : ",") point
+      if (first == "") first = point
+      last = point
+    }
+    END {
+      if (n == 0) exit 1
+      printf "{\"type\":\"MultiPolygon\",\"coordinates\":["
+      for (i = 1; i <= n; i++) printf "%s[%s]", (i > 1 ? "," : ""), poly[i]
+      printf "]}"
+    }' "$WORK/region.poly" || true
 }
 
 build() {
@@ -56,7 +96,10 @@ build() {
       deploy/describe.sql | duckdb
   done
   source_modified="$(date -u -r "$WORK/input.osm.pbf" +%Y-%m-%dT%H:%M:%SZ)"
-  printf '{"timestamp":"%s","bounds":%s}\n' "$source_modified" "$(bounds)" > "$WORK/out/metadata.json"
+  fetch_poly
+  region_outline="$(outline)"
+  printf '{"timestamp":"%s","bounds":%s%s}\n' "$source_modified" "$(bounds)" \
+    "${region_outline:+,\"outline\":$region_outline}" > "$WORK/out/metadata.json"
   printf '{"region":"%s","source":"%s","source_modified":"%s","built_at":"%s"}\n' \
     "$REGION" "$PBF_URL" "$source_modified" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$WORK/out/build.json"

@@ -41,9 +41,9 @@ Not in upstream, which publishes to data.openstreetmap.us by other means.
   failure. `layercake` serves the volume with Caddy.
 - `deploy/update.sh` also writes the files the explorer reads from
   data.openstreetmap.us: `<layer>.description.json` (row count and schema, via
-  `deploy/describe.sql`) and `metadata.json` (OSM data date, plus `bounds`, the
-  region's bounding box from the Geofabrik `.poly` outline or else the data's
-  extent). `build.json` records the source and build time.
+  `deploy/describe.sql`) and `metadata.json` (OSM data date; `bounds`, the region's bounding box from the Geofabrik
+  `.poly` outline or else the data's extent; and `outline`, that `.poly` as a
+  GeoJSON MultiPolygon, when there is one). `build.json` records the source and build time.
 - Caddy (`deploy/Caddyfile`) sends CORS and range-request headers so DuckDB,
   including duckdb-wasm in a browser, can read the Parquet files remotely, and
   `Cache-Control: no-cache` because files are replaced in place each day.
