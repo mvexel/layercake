@@ -1,0 +1,42 @@
+# Komodo stack `layercake`. The builder rebuilds the configured region's
+# extract daily into a shared volume; the web service serves it on the shared
+# ingress network as `layercake`, and the shared Caddy proxies
+# https://layercake.osm.lol to layercake:80.
+services:
+  builder:
+    build: ..
+    image: layercake-builder:local
+    # Built on the host, never pulled: Komodo runs `compose pull` before `up`.
+    pull_policy: build
+    restart: unless-stopped
+    entrypoint: ["/run/layercake/deploy/update.sh"]
+    environment:
+      REGION: ${LAYERCAKE_REGION:-utah}
+      PBF_URL: ${LAYERCAKE_PBF_URL:-https://download.geofabrik.de/north-america/us/utah-latest.osm.pbf}
+      BUILD_INTERVAL: ${LAYERCAKE_BUILD_INTERVAL:-86400}
+      PROCESS_ARGS: ${LAYERCAKE_PROCESS_ARGS:---duckdb-memory-limit=3GB}
+    volumes:
+      - ./update.sh:/run/layercake/deploy/update.sh:ro
+      - data:/srv/layercake
+    mem_limit: 4g
+
+  layercake:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - data:/srv/layercake:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks: [default, ingress]
+
+volumes:
+  data:
+
+networks:
+  ingress:
+    name: schaaltreinenhuis-ingress
+    external: true

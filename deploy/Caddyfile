@@ -1,0 +1,19 @@
+# Serves the published extracts on :80 (plain HTTP on the internal network);
+# TLS and the public hostname are handled by the shared Caddy in front.
+# Clients such as DuckDB read the Parquet files with HTTP range requests, so
+# responses carry CORS headers that allow Range and expose the range headers.
+:80 {
+	root * /srv/layercake
+	header {
+		Access-Control-Allow-Origin *
+		Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+		Access-Control-Allow-Headers Range
+		Access-Control-Expose-Headers "Accept-Ranges, Content-Length, Content-Range, ETag, Last-Modified"
+	}
+	@preflight method OPTIONS
+	respond @preflight 204
+	header Cache-Control "public, max-age=3600"
+	file_server browse {
+		hide .*
+	}
+}
