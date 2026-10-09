@@ -41,6 +41,7 @@ COPY (
     tags['rapids']                   AS rapids,
     tags['rapids:name']              AS 'rapids:name',
     tags['hazard']                   AS hazard,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

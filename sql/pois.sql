@@ -83,6 +83,7 @@ COPY (
     tags['source']                           AS source,
     tags['sport']                            AS sport,
     tags['wheelchair']                       AS wheelchair,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

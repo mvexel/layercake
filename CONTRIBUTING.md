@@ -45,6 +45,8 @@ To add a new layer, create a new SQL file in the `sql/` directory (see existing 
 
 Feel free to request new columns (tags) to add to existing layers, or simply make a PR.
 
+Every layer has an `other_tags` column holding the tags that are not promoted to a column. `process.sh` works out which tags are promoted by reading the layer's column list: every `tags['key']` and every `prefix_map('prefix:', tags)` / `prefix_map_split(...)` in the outer `SELECT`. Adding, renaming or removing a column therefore updates `other_tags` automatically. Keep reading tags as `tags['key']` with a literal key, so the column is picked up.
+
 ## Reporting problems
 
 If you find an issue with Layercake (such as certain features being processed incorretly), please open a bug on GitHub. If there's an error _in the data itself_, that is most likely a problem with the upstream OpenStreetMap data. You can check the data yourself on [openstreetmap.org](https://openstreetmap.org), and edit the map to fix the issue if it hasn't already been fixed.

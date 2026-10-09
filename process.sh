@@ -56,19 +56,38 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
+# Print the quoted strings matched by a grep pattern as a DuckDB VARCHAR[]
+# literal, e.g. ['highway','name']::VARCHAR[].
+sql_list() {
+  local items
+  items="$(grep -o "$1" | grep -o "'[^']*'" | sort -u | paste -sd, -)"
+  echo "[${items}]::VARCHAR[]"
+}
+
 # Run a layer's SQL file through DuckDB, prepending shared macros and
-# substituting {{INPUT}} and {{OUTPUT}} placeholders.
+# substituting {{INPUT}}, {{OUTPUT}}, {{PROMOTED_KEYS}} and
+# {{PROMOTED_PREFIXES}} placeholders.
+#
+# The promoted keys and prefixes are read from the layer's column list (the
+# outer SELECT): every tags['key'] it reads and every prefix_map('prefix:', ...)
+# it builds. The other_tags column holds all remaining tags, so adding,
+# renaming or removing a column never needs a second list kept in sync.
 run_layer() {
   local name="$1"
+  local sql="${SCRIPT_DIR}/sql/${name}.sql"
   local output="${OUTPUT_DIR}/${name}.parquet"
+  local columns keys prefixes
+  columns="$(sed -n '/^  SELECT$/,$p' "$sql")"
+  keys="$(echo "$columns" | sql_list "tags\['[^']*'\]")"
+  prefixes="$(echo "$columns" | sql_list "prefix_map[a-z_]*('[^']*'")"
   echo "Extracting ${name} layer"
   {
     cat "${SCRIPT_DIR}/sql/macros.sql"
     [ -n "$DUCKDB_MEMORY_LIMIT" ] && echo "SET memory_limit = '${DUCKDB_MEMORY_LIMIT}';"
     [ -n "$OSMIUM_INDEX_TYPE" ] && echo "SET osmium_index_type = '${OSMIUM_INDEX_TYPE}';"
-    cat "${SCRIPT_DIR}/sql/${name}.sql"
+    cat "$sql"
   } | \
-    sed "s|{{INPUT}}|${INPUT}|g; s|{{OUTPUT}}|${output}|g" | \
+    sed "s|{{INPUT}}|${INPUT}|g; s|{{OUTPUT}}|${output}|g; s|{{PROMOTED_KEYS}}|${keys}|g; s|{{PROMOTED_PREFIXES}}|${prefixes}|g" | \
     duckdb --unsigned
 }
 

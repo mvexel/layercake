@@ -29,6 +29,7 @@ COPY (
     tags['start_date']          AS start_date,
     tags['access']              AS access,
     tags['wheelchair']          AS wheelchair,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

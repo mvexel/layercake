@@ -34,6 +34,7 @@ COPY (
     tags['website']                             AS website,
     tags['wikidata']                            AS wikidata,
     tags['wikipedia']                           AS wikipedia,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

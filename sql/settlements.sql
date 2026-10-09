@@ -22,6 +22,7 @@ COPY (
     tags['wikidata']                        AS wikidata,
     tags['wikipedia']                       AS wikipedia,
     TRY_CAST(tags['population'] AS UBIGINT) AS population,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

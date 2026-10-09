@@ -44,6 +44,7 @@ COPY (
     tags['addr:country']             AS "addr:country",
     -- Full, unstructured address; not machine-readable but maybe useful
     tags['addr:full']                AS "addr:full",
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

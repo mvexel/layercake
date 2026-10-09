@@ -32,3 +32,15 @@ CREATE OR REPLACE MACRO prefix_map_split(pfx, t) AS (
     )
   )
 );
+
+-- Collect the tags that a layer did not promote to a column or prefix map.
+-- keys and prefixes are filled in by process.sh from the layer's own column
+-- expressions (every tags['key'] and prefix_map('prefix:', ...) it uses).
+CREATE OR REPLACE MACRO other_tags(t, keys, prefixes) AS (
+  MAP_FROM_ENTRIES(
+    LIST_FILTER(MAP_ENTRIES(t), lambda x :
+      NOT list_contains(keys, x.key)
+      AND len(list_filter(prefixes, lambda p : starts_with(x.key, p))) = 0
+    )
+  )
+);

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 Versioning of this project adheres to the [Semantic Versioning](https://semver.org/spec/v2.0.0.html) spec.
 
+## Unreleased
+
+- add an `other_tags` column (`MAP(VARCHAR, VARCHAR)`) to all layers, holding every tag that is not already a column or part of a prefix map
+
 ## v0.4.0
 
 Released 2026-09-13

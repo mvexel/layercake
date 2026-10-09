@@ -44,6 +44,7 @@ COPY (
     tags['motorcycle']      AS motorcycle,
     tags['oneway']          AS oneway,
     tags['toll']            AS toll,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

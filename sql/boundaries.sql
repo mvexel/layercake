@@ -28,6 +28,7 @@ COPY (
     split_multi(tags['claimed_by'])          AS claimed_by,
     split_multi(tags['controlled_by'])       AS controlled_by,
     split_multi(tags['recognized_by'])       AS recognized_by,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {

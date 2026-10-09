@@ -22,6 +22,7 @@ COPY (
     tags['managed']                  AS managed,
     tags['wikidata']                 AS wikidata,
     tags['source']                   AS source,
+    other_tags(tags, {{PROMOTED_KEYS}}, {{PROMOTED_PREFIXES}}) AS other_tags,
     version,
     timestamp,
     {
